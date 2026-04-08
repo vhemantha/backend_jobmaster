@@ -29,5 +29,4 @@ databases:
   - name: jobmasters-db
     databaseName: jobmasters
     user: jobmasters
-    plan: starter
-    previewPlan: starter
+    plan: Basic
