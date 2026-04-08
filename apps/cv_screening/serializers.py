@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import UploadedCV, CVScreeningResult, CV_CATEGORIES
+from .models import UploadedCV, CVScreeningResult, CV_CATEGORIES, SCREENING_STATUS
 
 
 class UploadedCVSerializer(serializers.ModelSerializer):
@@ -42,6 +42,7 @@ class CVScreeningResultListSerializer(serializers.ModelSerializer):
             'job_id', 'job_title',
             'overall_score', 'match_label',
             'recommendation', 'screened_at',
+            'status', 'error_message',
         ]
 
 
@@ -59,4 +60,5 @@ class CVScreeningResultDetailSerializer(serializers.ModelSerializer):
             'score_breakdown', 'strengths', 'weaknesses',
             'recommendation', 'summary',
             'screened_at', 'gemini_model_used',
+            'status', 'error_message',
         ]

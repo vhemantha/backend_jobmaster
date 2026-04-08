@@ -2,6 +2,13 @@ from django.db import models
 
 GEMINI_MODEL = 'gemini-2.5-flash'
 
+SCREENING_STATUS = [
+    ('pending',    'Pending'),
+    ('processing', 'Processing'),
+    ('completed',  'Completed'),
+    ('failed',     'Failed'),
+]
+
 CV_CATEGORIES = [
     ('engineering',      'Engineering & Tech'),
     ('design',           'Design & Creative'),
@@ -63,6 +70,8 @@ class CVScreeningResult(models.Model):
     summary = models.TextField(blank=True)
     screened_at = models.DateTimeField(auto_now_add=True)
     gemini_model_used = models.CharField(max_length=50, default=GEMINI_MODEL)
+    status = models.CharField(max_length=20, choices=SCREENING_STATUS, default='completed')
+    error_message = models.TextField(blank=True)
 
     class Meta:
         unique_together = ('cv', 'job')

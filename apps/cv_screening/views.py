@@ -1,10 +1,12 @@
 import logging
+import threading
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.shortcuts import get_object_or_404
+from django.db import close_old_connections
 
 from .models import UploadedCV, CVScreeningResult, GEMINI_MODEL, CV_CATEGORIES
 from .serializers import (
@@ -17,6 +19,34 @@ from apps.jobs.models import Job
 from apps.profiles.permissions import IsEmployer
 
 logger = logging.getLogger(__name__)
+
+
+def _run_gemini_background(result_pk, cv_text, job_pk):
+    """Run Gemini screening in a daemon thread; update result when done."""
+    close_old_connections()
+    try:
+        job = Job.objects.get(pk=job_pk)
+        result_data = screen_cv_against_job(cv_text, job)
+        CVScreeningResult.objects.filter(pk=result_pk).update(
+            overall_score=result_data.get('overall_score', 0),
+            score_breakdown=result_data.get('breakdown', {}),
+            strengths=result_data.get('strengths', []),
+            weaknesses=result_data.get('weaknesses', []),
+            recommendation=result_data.get('recommendation', ''),
+            summary=result_data.get('summary', ''),
+            gemini_model_used=GEMINI_MODEL,
+            status='completed',
+            error_message='',
+        )
+        logger.info(f"Background screening completed for result_pk={result_pk}")
+    except Exception as e:
+        logger.error(f"Background screening failed for result_pk={result_pk}: {e}")
+        CVScreeningResult.objects.filter(pk=result_pk).update(
+            status='failed',
+            error_message=str(e)[:500],
+        )
+    finally:
+        close_old_connections()
 
 
 def _is_employer(user):
@@ -193,31 +223,33 @@ class CVScreenView(APIView):
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        try:
-            result_data = screen_cv_against_job(cv.cv_text, job)
-        except Exception as e:
-            logger.error(f"Gemini screening error cv={cv_id} job={job_id}: {e}")
-            return Response(
-                {'error': f'AI screening failed: {str(e)}'},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        result, created = CVScreeningResult.objects.update_or_create(
+        # Create/reset the result record immediately so the client has an ID to poll.
+        result, _ = CVScreeningResult.objects.update_or_create(
             cv=cv, job=job,
             defaults={
-                'overall_score': result_data.get('overall_score', 0),
-                'score_breakdown': result_data.get('breakdown', {}),
-                'strengths': result_data.get('strengths', []),
-                'weaknesses': result_data.get('weaknesses', []),
-                'recommendation': result_data.get('recommendation', ''),
-                'summary': result_data.get('summary', ''),
+                'overall_score': 0,
+                'score_breakdown': {},
+                'strengths': [],
+                'weaknesses': [],
+                'recommendation': '',
+                'summary': '',
                 'gemini_model_used': GEMINI_MODEL,
+                'status': 'processing',
+                'error_message': '',
             },
         )
 
+        # Fire Gemini in a background thread so the response returns within Render's 30s window.
+        t = threading.Thread(
+            target=_run_gemini_background,
+            args=(result.pk, cv.cv_text, job.pk),
+            daemon=True,
+        )
+        t.start()
+
         return Response(
             CVScreeningResultDetailSerializer(result).data,
-            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+            status=status.HTTP_202_ACCEPTED,
         )
 
 
