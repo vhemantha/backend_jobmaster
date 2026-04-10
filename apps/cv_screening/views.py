@@ -7,6 +7,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.db import close_old_connections
+from django.http import FileResponse
 
 from .models import UploadedCV, CVScreeningResult, GEMINI_MODEL, CV_CATEGORIES
 from .serializers import (
@@ -184,6 +185,36 @@ class CVDetailView(APIView):
             return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
         cv.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CVDownloadView(APIView):
+    """
+    Stream a CV PDF as a file download.
+    Admin: any CV.
+    Employer: CVs they uploaded OR CVs that have a screening result against one of their jobs.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        cv = get_object_or_404(UploadedCV, pk=pk)
+
+        if not request.user.is_staff:
+            if not _is_employer(request.user):
+                return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+            employer_owns = cv.uploaded_by_id == request.user.pk
+            has_result = CVScreeningResult.objects.filter(
+                cv=cv, job__employer__user=request.user
+            ).exists()
+            if not employer_owns and not has_result:
+                return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not cv.cv_file:
+            return Response({'error': 'No file attached to this CV.'}, status=status.HTTP_404_NOT_FOUND)
+
+        safe_name = cv.candidate_name.replace(' ', '_')
+        response = FileResponse(cv.cv_file.open('rb'), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{safe_name}_CV.pdf"'
+        return response
 
 
 class CVScreenView(APIView):

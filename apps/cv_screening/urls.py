@@ -8,6 +8,7 @@ urlpatterns = [
     # Admin + Employer
     path('cvs/', views.CVUploadView.as_view(), name='cv-list-upload'),
     path('cvs/<int:pk>/', views.CVDetailView.as_view(), name='cv-detail'),
+    path('cvs/<int:pk>/download/', views.CVDownloadView.as_view(), name='cv-download'),
     path('screen/', views.CVScreenView.as_view(), name='cv-screen'),
 
     # Employer
