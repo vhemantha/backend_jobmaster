@@ -24,6 +24,12 @@ services:
         sync: false  # Set this manually in the Render dashboard
       - key: CORS_ALLOWED_ORIGINS
         sync: false  # Set to your frontend URL in the Render dashboard
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false  # Set in Render dashboard → your Cloudinary cloud name
+      - key: CLOUDINARY_API_KEY
+        sync: false  # Set in Render dashboard → your Cloudinary API key
+      - key: CLOUDINARY_API_SECRET
+        sync: false  # Set in Render dashboard → your Cloudinary API secret
 
 databases:
   - name: jobmasters-db

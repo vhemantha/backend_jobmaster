@@ -146,7 +146,7 @@ class CVUploadView(APIView):
                     notes=notes,
                     uploaded_by=request.user,
                 )
-                cv.cv_text = extract_pdf_text(cv.cv_file.path)
+                cv.cv_text = extract_pdf_text(cv.cv_file)
                 cv.save(update_fields=['cv_text'])
                 created_cvs.append(cv)
             except Exception as e:
@@ -258,7 +258,7 @@ class CVScreenView(APIView):
             job = get_object_or_404(Job, pk=job_id, employer__user=request.user)
 
         if not cv.cv_text and cv.cv_file:
-            cv.cv_text = extract_pdf_text(cv.cv_file.path)
+            cv.cv_text = extract_pdf_text(cv.cv_file)
             cv.save(update_fields=['cv_text'])
 
         if not cv.cv_text:

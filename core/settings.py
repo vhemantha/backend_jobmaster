@@ -106,6 +106,9 @@ CLOUDINARY_CLOUD_NAME = config('CLOUDINARY_CLOUD_NAME', default='')
 CLOUDINARY_API_KEY    = config('CLOUDINARY_API_KEY', default='')
 CLOUDINARY_API_SECRET = config('CLOUDINARY_API_SECRET', default='')
 
+MEDIA_URL  = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
 if CLOUDINARY_CLOUD_NAME:
     CLOUDINARY_STORAGE = {
         'CLOUD_NAME': CLOUDINARY_CLOUD_NAME,
@@ -113,10 +116,8 @@ if CLOUDINARY_CLOUD_NAME:
         'API_SECRET': CLOUDINARY_API_SECRET,
     }
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    MEDIA_URL = f'https://res.cloudinary.com/{CLOUDINARY_CLOUD_NAME}/'
-else:
-    MEDIA_URL  = '/media/'
-    MEDIA_ROOT = BASE_DIR / 'media'
+    # Note: MEDIA_URL is not used when Cloudinary is active —
+    # django-cloudinary-storage builds URLs directly via cv.cv_file.url
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'

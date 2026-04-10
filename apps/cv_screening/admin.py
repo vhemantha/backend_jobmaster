@@ -14,7 +14,7 @@ def extract_text_action(modeladmin, request, queryset):
     updated = 0
     for cv in queryset:
         if cv.cv_file:
-            text = extract_pdf_text(cv.cv_file.path)
+            text = extract_pdf_text(cv.cv_file)
             UploadedCV.objects.filter(pk=cv.pk).update(cv_text=text)
             updated += 1
     modeladmin.message_user(request, f'Extracted text for {updated} CV(s).')
@@ -27,7 +27,7 @@ def rescreen_action(modeladmin, request, queryset):
         try:
             cv = result.cv
             if not cv.cv_text and cv.cv_file:
-                cv.cv_text = extract_pdf_text(cv.cv_file.path)
+                cv.cv_text = extract_pdf_text(cv.cv_file)
                 UploadedCV.objects.filter(pk=cv.pk).update(cv_text=cv.cv_text)
             data = screen_cv_against_job(cv.cv_text, result.job)
             CVScreeningResult.objects.filter(pk=result.pk).update(
@@ -82,7 +82,7 @@ class UploadedCVAdmin(admin.ModelAdmin):
             obj.uploaded_by = request.user
         super().save_model(request, obj, form, change)
         if obj.cv_file and not obj.cv_text:
-            text = extract_pdf_text(obj.cv_file.path)
+            text = extract_pdf_text(obj.cv_file)
             UploadedCV.objects.filter(pk=obj.pk).update(cv_text=text)
             obj.cv_text = text
 

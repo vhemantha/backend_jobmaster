@@ -1,6 +1,8 @@
+import io
 import json
 import re
 import logging
+import urllib.request
 
 import google.generativeai as genai
 from django.conf import settings
@@ -21,19 +23,34 @@ def _get_model():
     return _gemini_model
 
 
-def extract_pdf_text(file_path):
-    """Extract plain text from a PDF file using pypdf."""
+def extract_pdf_text(cv_file):
+    """
+    Extract plain text from a PDF.
+
+    Accepts either:
+      - a local file path string (dev / local disk)
+      - a Django FieldFile (Cloudinary or any remote storage)
+
+    Falls back to downloading from the file's URL when .path is unavailable.
+    """
+    from pypdf import PdfReader
     try:
-        from pypdf import PdfReader
-        reader = PdfReader(file_path)
-        parts = []
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                parts.append(text)
+        # Local path string
+        if isinstance(cv_file, (str, bytes)):
+            source = cv_file
+        else:
+            # Django FieldFile — try local path first, fall back to URL download
+            try:
+                source = cv_file.path
+            except (NotImplementedError, ValueError):
+                with urllib.request.urlopen(cv_file.url) as resp:
+                    source = io.BytesIO(resp.read())
+
+        reader = PdfReader(source)
+        parts = [page.extract_text() or '' for page in reader.pages]
         return '\n'.join(parts).strip()
     except Exception as e:
-        logger.error(f"PDF extraction error for {file_path}: {e}")
+        logger.error(f"PDF extraction error: {e}")
         return ''
 
 
