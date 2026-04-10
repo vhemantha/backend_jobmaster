@@ -1,5 +1,5 @@
 """
-JobMasters Mock AI Matching Engine
+TalentPick Mock AI Matching Engine
 ===================================
 Four-factor weighted scoring algorithm:
   Overall = (Skill × 0.50) + (Experience × 0.25) + (Keyword × 0.20) + (Location × 0.05)
