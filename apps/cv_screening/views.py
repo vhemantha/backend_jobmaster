@@ -7,7 +7,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.shortcuts import get_object_or_404
 from django.db import close_old_connections
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponseRedirect
+from django.conf import settings as django_settings
 
 from .models import UploadedCV, CVScreeningResult, GEMINI_MODEL, CV_CATEGORIES
 from .serializers import (
@@ -212,9 +213,21 @@ class CVDownloadView(APIView):
             return Response({'error': 'No file attached to this CV.'}, status=status.HTTP_404_NOT_FOUND)
 
         safe_name = cv.candidate_name.replace(' ', '_')
-        response = FileResponse(cv.cv_file.open('rb'), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{safe_name}_CV.pdf"'
-        return response
+
+        # Cloudinary stores files remotely — redirect to the signed URL.
+        if getattr(django_settings, 'CLOUDINARY_CLOUD_NAME', ''):
+            return HttpResponseRedirect(cv.cv_file.url)
+
+        # Local disk (dev)
+        try:
+            response = FileResponse(cv.cv_file.open('rb'), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{safe_name}_CV.pdf"'
+            return response
+        except FileNotFoundError:
+            return Response(
+                {'error': 'File not found on disk. It may have been lost after a server restart.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 class CVScreenView(APIView):
